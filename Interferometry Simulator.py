@@ -70,7 +70,7 @@ def gaussian_disk(sigma_grid, a, b, sigma, x0, y0):
 
     x, y = np.meshgrid(sigma_grid, sigma_grid)
 
-    I_sigma_2D = b + a * np.exp(-((np.sqrt((x - x0) ** 2. + (y - y0) ** 2.)) / (2 * sigma) ** 2))
+    I_sigma_2D = b + a * np.exp(-(((np.sqrt((x - x0) ** 2. + (y - y0) ** 2.)) / (2 * sigma)) ** 2))
 
     return I_sigma_2D
 
@@ -236,7 +236,7 @@ def run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_k
     # source_params: DICTIONARY of shape: ["dec"] = source declination [deg], ["lat"] = observatory latitude [deg], ["h"] = VECTOR of Hour Angles of the source, ["dist"] = source distance [pc], ["characteristic_scale"] = characteristic scale of the object's geometry (sigma for Gaussian shapes, outer radius for uniform shapes) [as] \
     # ["shape"]: STRING of desired shape of object (uniform_ring, uniform_disk, gaussian_ring, gaussian_disk), ["shape_params"]: LIST of parameters of the shape, as required by each function except for centroid position and sigma_grid
     # plotting_knobs: DICTIONARY of booleans for different plotting options: ["shape"] = plots generated 2D shape, ["uv_rot"] = plots the sampled u-v plane due to the rotation of the earth (avg. wavelength), ["uv_wlSynth"] = plots the sampled u-v plane due wavelength synthesis (avg. Hr angle)
-    # ["u_vec_mag"]: plot the magnitude of he u,v vectors as a function of wavelength for each baseline
+    # ["u_vec_mag"]: plot the magnitude of he u,v vectors as a function of wavelength for each baseline, ["visibilities"]: plot visibilities as functions of u * characteristic_scale and wavelength for all baselines, ["phases"]: plot phases as functions of u * characteristic_scale and wavelength for all baselines
 
     #### Defining required quantities (nomenclature according to Busch book) ####
     lat, dec, Hr_angles = source_params["lat"], source_params["dec"], source_params["Hr_angles"] # observatory lat [deg], target dec [deg], target Hour angles [deg]
@@ -252,7 +252,7 @@ def run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_k
     F0 = sum(sum(I_sigma_2D))
     object_visibility = I_sigma_2D / sum(sum(I_sigma_2D))  # Eq 1.49
 
-    # Generating a list of spatial frequencies U (1.22)
+    # Generating a list of spatial frequencies U (Eq. 1.22)
     B, B_rotation = np.array([Baselines[i][0] for i in range(len(Baselines))]), np.array([Baselines[i][1] for i in range(len(Baselines))])
 
     u_2D_vec = np.array([[(B[b] / wavelengths[w]) * np.array([cos(deg2rad(B_rotation[b])), sin(deg2rad(B_rotation[b]))]) for w in range(len(wavelengths))] for b in range(len(B))]) # Matrix of u vectors for all baselines and wavelengths (Eq. 1.22)
@@ -265,6 +265,7 @@ def run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_k
     Vu_2D = np.array([[sum(sum(object_visibility * u_sigma_2D[b][w])) for w in range(len(wavelengths))] for b in range(len(Baselines))]) # Correlated flux for all Baselines and wavelengths
     i_x_2D = np.array([[F0 + real(real(Vu_2D[b][w]) * exp(1j * 2 * pi * s[w] * detector_coords + imag(Vu_2D[b][w]))) for w in range(len(wavelengths))] for b in range(len(Baselines))]) # Fringe pattern for every Baseline and wavelength
     visibilities_2D = np.array([[real(Vu_2D[b][w]) for w in range(len(wavelengths))] for b in range(len(Baselines))]) # Visibility for each Baseline and wavelength
+    phases_2D = np.array([[imag(Vu_2D[b][w]) for w in range(len(wavelengths))] for b in range(len(Baselines))]) # Phase for each Baseline and wavelength
 
     ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ######## ######## PLOTTING ########
 
@@ -313,11 +314,11 @@ def run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_k
             u_this_b = np.array([u_2D_vec[b][i][0] for i in range(len(u_2D_vec[b]))])
             v_this_b = np.array([u_2D_vec[b][i][1] for i in range(len(u_2D_vec[b]))])
 
-            vis_this_b = np.array([visibilities_2D[b][i] for i in range(len(visibilities_2D[b]))])
+            phase_this_b = np.array([visibilities_2D[b][i] for i in range(len(visibilities_2D[b]))])
             g = g + 1
 
             plt.subplot(len(u_2D_vec), 2, g)
-            plt.plot(wavelengths / 1e-6, vis_this_b, color = 'goldenrod')
+            plt.plot(wavelengths / 1e-6, phase_this_b, color ='goldenrod')
             plt.ylabel("Visibility", fontsize = fontsize - 2)
             plt.tick_params(labelsize = fontsize - 2)
 
@@ -327,32 +328,69 @@ def run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_k
             g = g + 1
 
             plt.subplot(len(u_2D_vec), 2, g)
-            plt.plot(u_this_b * characteristic_scale, vis_this_b, color = 'skyblue', label = 'u')
-            plt.plot(v_this_b * characteristic_scale, vis_this_b, color = 'mediumorchid', label = 'v')
+            plt.plot(sqrt(u_this_b ** 2 + v_this_b ** 2) * characteristic_scale, phase_this_b, color ='skyblue')
+            # plt.plot(u_this_b * characteristic_scale, vis_this_b, color = 'skyblue', label = 'u')
+            # plt.plot(v_this_b * characteristic_scale, vis_this_b, color = 'mediumorchid', label = 'v')
             plt.tick_params(labelsize = fontsize - 2)
 
-            if b == 0:
-                plt.legend()
+            # if b == 0:
+            #     plt.legend()
 
             if b == len(u_2D_vec) - 1:
                 plt.xlabel("$u\Delta\\sigma$", fontsize=fontsize - 2)
         plt.show()
 
+    if plotting_knobs["phases"] == True:
+
+        g = 0
+
+        for b in range(len(phases_2D)):
+
+            u_this_b = np.array([u_2D_vec[b][i][0] for i in range(len(u_2D_vec[b]))])
+            v_this_b = np.array([u_2D_vec[b][i][1] for i in range(len(u_2D_vec[b]))])
+
+            phase_this_b = np.array([rad2deg(phases_2D[b][i]) for i in range(len(phases_2D[b]))])
+            g = g + 1
+
+            plt.subplot(len(u_2D_vec), 2, g)
+            plt.plot(wavelengths / 1e-6, phase_this_b, color ='olivedrab')
+            plt.ylabel("Phase [$^o$]", fontsize = fontsize - 2)
+            plt.tick_params(labelsize = fontsize - 2)
+
+            if b == len(u_2D_vec) - 1:
+                plt.xlabel("Wavelength [$\mu$m]", fontsize=fontsize - 2)
+
+            g = g + 1
+
+            plt.subplot(len(u_2D_vec), 2, g)
+            plt.plot(sqrt(u_this_b ** 2 + v_this_b ** 2) * characteristic_scale, phase_this_b, color ='slateblue')
+            # plt.plot(u_this_b * characteristic_scale, vis_this_b, color = 'skyblue', label = 'u')
+            # plt.plot(v_this_b * characteristic_scale, vis_this_b, color = 'mediumorchid', label = 'v')
+            plt.tick_params(labelsize = fontsize - 2)
+
+            # if b == 0:
+            #     plt.legend()
+
+            if b == len(u_2D_vec) - 1:
+                plt.xlabel("$u\Delta\\sigma$", fontsize=fontsize - 2)
+        plt.show()
+
+######## EXAMPLE ######## ######## EXAMPLE ######## ######## EXAMPLE ######## ######## EXAMPLE ########
+
 source_center_lm = [0. * mas2deg, 0. * mas2deg] # [deg]
 Baselines = [(100, 45.), (23, 12.), (33, 82.)] # M, deg
 characteristic_scale, dist = 1 * mas2deg, 400. # deg, pc
-shape = "uniform_disk"
-shape_params = [1., characteristic_scale / 2.]
+shape = "gaussian_disk"
+shape_params = [1., 0., characteristic_scale / 2.] # look at shape generation functions - the input here has to be all the parameters EXCEPT sigma_grid, x0 and y0
 wavelengths = np.linspace(5, 130, 1000) * 1e-6 # [m]
 Hr_angle, dec, lat = 28.2576335631872, -21.95482, -24.6273 # [deg]
 Hr_angle_vec = np.linspace(Hr_angle - 50., Hr_angle + 16., 50) # [deg]
 beta = 50. * as2deg # Beam angle of incidence on the detector [deg]
 detector_coords = np.linspace(-0.008, 0.008, 1000) # [m]
 source_params = {"source_center_lm": source_center_lm, "characteristic_scale": characteristic_scale, "dist": dist, "shape": shape, "shape_params": shape_params, "lat": lat, "dec": dec, "Hr_angles": Hr_angle_vec}
-plotting_knobs = {"shape": False, "uv_rot": True, "uv_wlSynth": True, "u_vec_mag": True, "visibilities": True}
+plotting_knobs = {"shape": True, "uv_rot": True, "uv_wlSynth": True, "u_vec_mag": True, "visibilities": True, "phases": True}
 
 #### PLOTTING KNOBS ####
-
 run(wavelengths, beta, detector_coords, Baselines, source_params, plotting_knobs)
 
 
