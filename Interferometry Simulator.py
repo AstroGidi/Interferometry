@@ -316,8 +316,8 @@ def run(wavelengths, beta, detector_coords, Telescopes_coords, source_params, pl
             v_this_b = np.array([u_2D_vec[b][i][1] for i in range(len(u_2D_vec[b]))])
 
             plt.subplot(len(u_2D_vec), 1, b + 1)
-            plt.plot(wavelengths * 1e6, u_this_b * characteristic_scale, color = 'blue', label = 'u$\Delta\sigma$ for B = {0} [m], $\\theta$ = {1}$^o$'.format(Baselines[b][0], round(Baselines[b][1], 1)))
-            plt.plot(wavelengths * 1e6, v_this_b * characteristic_scale, '--', color = 'orange', label = 'v$\Delta\sigma$'.format(Baselines[b][0], round(Baselines[b][1], 1)))
+            plt.plot(wavelengths * 1e6, u_this_b * characteristic_scale, color = 'blue', label = 'u$\Delta\sigma$ for B = {0} [m], $\\theta$ = {1}$^o$'.format(round(Baselines[b][0], 1), round(Baselines[b][1], 1)))
+            plt.plot(wavelengths * 1e6, v_this_b * characteristic_scale, '--', color = 'orange', label = 'v$\Delta\sigma$'.format(round(Baselines[b][0], 1), round(Baselines[b][1], 1)))
             plt.ylabel("$\\vec{u}\Delta\sigma$", fontsize = fontsize - 2)
             plt.tick_params(labelsize = fontsize - 2)
             plt.legend()
@@ -339,7 +339,7 @@ def run(wavelengths, beta, detector_coords, Telescopes_coords, source_params, pl
             g = g + 1
 
             plt.subplot(len(u_2D_vec), 2, g)
-            plt.plot(wavelengths / 1e-6, vis_this_b, color ='goldenrod', label = "B = {0} [m], $\\theta$ = {1}$^o$".format(B[b], B_rotation[b]))
+            plt.plot(wavelengths / 1e-6, vis_this_b, color ='goldenrod', label = "B = {0} [m], $\\theta$ = {1}$^o$".format(round(B[b], 1), round(B_rotation[b], 1)))
             plt.ylabel("Visibility", fontsize = fontsize - 2)
             plt.tick_params(labelsize = fontsize - 2)
             plt.legend()
@@ -379,6 +379,7 @@ def run(wavelengths, beta, detector_coords, Telescopes_coords, source_params, pl
         for i in range(len(Telescopes_coords)):
             for j in range(i + 1, len(Telescopes_coords)):
                 plt.plot(np.array([Telescopes_coords[i][0], Telescopes_coords[j][0]]), np.array([Telescopes_coords[i][1], Telescopes_coords[j][1]]), 'o-', label = 'T {0}, {1}'.format(i + 1, j + 1))
+        plt.plot(0., 0., '*', markersize = fontsize, color = 'gold', label = 'Origin')
         plt.title("Baselines")
         plt.xlabel("u [m]", fontsize = fontsize)
         plt.ylabel("v [m]", fontsize = fontsize)
@@ -436,7 +437,6 @@ def run(wavelengths, beta, detector_coords, Telescopes_coords, source_params, pl
         plt.legend()
         plt.show()
 
-
 ######## EXAMPLE ######## ######## EXAMPLE ######## ######## EXAMPLE ######## ######## EXAMPLE ########
 
 source_center_lm = [0.1 * mas2deg, 0.1 * mas2deg] # [deg]
@@ -450,7 +450,7 @@ Hr_angle_vec = np.linspace(Hr_angle - 50., Hr_angle + 16., 50) # [deg]
 beta = 1000. * as2deg # Beam angle of incidence on the detector [deg]
 detector_coords = np.linspace(-0.1, 0.1, 1000) # [m]
 source_params = {"source_center_lm": source_center_lm, "characteristic_scale": characteristic_scale, "dist": dist, "shape": shape, "shape_params": shape_params, "lat": lat, "dec": dec, "Hr_angles": Hr_angle_vec}
-plotting_knobs = {"shape": True, "uv_rot": False, "uv_wlSynth": False, "u_vec_mag": False, "visibilities": False, "phases": False, "vis_avgLambda": True, "closure_phases": True, "baselines": True}
+plotting_knobs = {"shape": True, "uv_rot": True, "uv_wlSynth": True, "u_vec_mag": False, "visibilities": False, "phases": False, "vis_avgLambda": True, "closure_phases": True, "baselines": True}
 
 #### PLOTTING KNOBS ####
 run(wavelengths, beta, detector_coords, Telescopes_coords, source_params, plotting_knobs)
